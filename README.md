@@ -1,4 +1,4 @@
-# ESP32 MQTT LED Controller
+# ESP32 MQTT Controller
 
 A simple IoT project that controls ESP32 LEDs remotely through a web interface using MQTT.
 
