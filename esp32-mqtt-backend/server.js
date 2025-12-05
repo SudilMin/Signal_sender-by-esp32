@@ -81,7 +81,7 @@ mqttClient.on('message', (topic, message) => {
     
     // Process 9-button grid messages
     if(topic === 'esp32/buttons') {
-        console.log('🎯 ESP32 9-Button Grid Data received:', data);
+        console.log('🎯 ESP8266 9-Button Grid Data received:', data);
         
         // Parse button grid data
         const buttonData = {
@@ -100,10 +100,16 @@ mqttClient.on('message', (topic, message) => {
             buttonData.col = parseInt(gridMatch[2]);
         }
         
-        // Extract pin number if possible
-        const pinMatch = data.match(/Pin (\d+)/);
+        // Extract ESP8266 pin (D0-D8) if possible
+        const pinMatch = data.match(/Pin (D\d+)/);
         if (pinMatch) {
-            buttonData.pin = parseInt(pinMatch[1]);
+            buttonData.pin = pinMatch[1]; // ESP8266 pin like "D1", "D2", etc.
+        } else {
+            // Fallback: try to extract numeric pin
+            const numPinMatch = data.match(/Pin (\d+)/);
+            if (numPinMatch) {
+                buttonData.pin = numPinMatch[1];
+            }
         }
         
         // Broadcast to all connected clients
@@ -251,9 +257,17 @@ app.get('/health', (req, res) => {
 // Start server
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
+    console.log('========================================');
     console.log('🚀 Server running on http://localhost:' + PORT);
-    console.log('📡 MQTT Topic: esp32/button');
+    console.log('📱 Device: ESP8266 NodeMCU V3');
+    console.log('📡 MQTT Topics: esp32/buttons, esp32/button/[row]/[col]');
+    console.log('🎮 Button Layout:');
+    console.log('   [D1] [D2] [D3]  <- Row 0');
+    console.log('   [D5] [D6] [D7]  <- Row 1');
+    console.log('   [RX] [TX] [D4]  <- Row 2');
+    console.log('💡 LEDs: D0=START, D8=STOP');
     console.log('🌐 Frontend available at: http://localhost:' + PORT);
+    console.log('========================================\n');
 });
 
 // Graceful shutdown
