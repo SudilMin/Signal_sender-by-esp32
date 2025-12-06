@@ -584,6 +584,96 @@
             addToMessageLog(`✅ ESP32 ACK: ${data.message}`, data.displayTime);
         });
         
+        // Session summary handling
+        socket.on('sessionSummary', (summary) => {
+            console.log('Session Summary:', summary);
+            displaySessionSummary(summary);
+        });
+        
+        function displaySessionSummary(summary) {
+            // Create modal overlay
+            const overlay = document.createElement('div');
+            overlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.7);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 10000;
+            `;
+            
+            // Create summary modal
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                background: white;
+                border-radius: 15px;
+                padding: 30px;
+                max-width: 500px;
+                width: 90%;
+                max-height: 80vh;
+                overflow-y: auto;
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            `;
+            
+            let summaryHTML = `
+                <h2 style="color: #4a5568; margin-bottom: 20px; text-align: center;">📊 Session Summary</h2>
+                <div style="background: #f7fafc; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                    <p style="margin: 10px 0;"><strong>⏱️ Start Time:</strong> ${summary.startTime}</p>
+                    <p style="margin: 10px 0;"><strong>⏱️ End Time:</strong> ${summary.endTime}</p>
+                    <p style="margin: 10px 0;"><strong>⌛ Duration:</strong> ${summary.duration}</p>
+                    <p style="margin: 10px 0; font-size: 1.2em; color: #667eea;"><strong>🔢 Total Clicks:</strong> ${summary.totalClicks}</p>
+                </div>
+            `;
+            
+            if (summary.buttonDetails && summary.buttonDetails.length > 0) {
+                summaryHTML += '<h3 style="color: #4a5568; margin: 20px 0 10px 0;">🎯 Button Details:</h3>';
+                
+                summary.buttonDetails.forEach(btn => {
+                    const pinName = gridPins[btn.row] && gridPins[btn.row][btn.col] ? gridPins[btn.row][btn.col] : 'Unknown';
+                    summaryHTML += `
+                        <div style="background: #e6f2ff; padding: 15px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #667eea;">
+                            <p style="margin: 5px 0; font-size: 1.1em;"><strong>Button ${btn.button} (Pin ${pinName}):</strong> ${btn.count} clicks</p>
+                            <div style="margin-top: 10px; padding-left: 15px;">
+                    `;
+                    
+                    btn.times.forEach((time, index) => {
+                        summaryHTML += `<p style="margin: 3px 0; font-size: 0.9em; color: #555;">${index + 1}. ${time}</p>`;
+                    });
+                    
+                    summaryHTML += '</div></div>';
+                });
+            } else {
+                summaryHTML += '<p style="text-align: center; color: #718096; margin: 20px 0;">No buttons clicked during this session</p>';
+            }
+            
+            summaryHTML += `
+                <button onclick="this.closest('.overlay-session').remove()" style="
+                    width: 100%;
+                    padding: 12px;
+                    margin-top: 20px;
+                    background: linear-gradient(135deg, #667eea, #764ba2);
+                    color: white;
+                    border: none;
+                    border-radius: 8px;
+                    font-size: 16px;
+                    font-weight: bold;
+                    cursor: pointer;
+                ">Close</button>
+            `;
+            
+            modal.innerHTML = summaryHTML;
+            overlay.className = 'overlay-session';
+            overlay.appendChild(modal);
+            document.body.appendChild(overlay);
+            
+            // Also log to message area
+            addToMessageLog(`📊 Session ended: ${summary.totalClicks} total clicks in ${summary.duration}`, summary.endTime);
+        }
+        
         function addToMessageLog(message, time) {
             const logEntry = document.createElement('div');
             logEntry.style.cssText = 'padding: 8px; margin: 5px 0; background: #e9ecef; border-radius: 5px; font-size: 14px;';

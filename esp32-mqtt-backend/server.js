@@ -15,6 +15,9 @@ const io = new Server(server, {
 // Serve static files
 app.use(express.static(__dirname + '/public'));
 
+// Session tracking
+const sessionStats = new Map(); // clientId -> { startTime, buttonClicks: [] }
+
 // MQTT Setup - using unique client ID to avoid conflicts
 const mqttClient = mqtt.connect('mqtt://broker.hivemq.com', {
     clientId: 'esp32_web_monitor_' + Date.now() + '_' + Math.random().toString(16).substr(2, 8),
@@ -137,6 +140,21 @@ mqttClient.on('message', (topic, message) => {
                 type: 'individual'
             };
             
+            // Track button clicks for active sessions
+            if (data === 'PRESSED') {
+                sessionStats.forEach((session, clientId) => {
+                    if (session.active) {
+                        session.buttonClicks.push({
+                            button: `[${row}][${col}]`,
+                            row: row,
+                            col: col,
+                            time: new Date().toLocaleString(),
+                            timestamp: timestamp
+                        });
+                    }
+                });
+            }
+            
             // Broadcast to all connected clients
             io.emit('buttonIndividual', buttonData);
             console.log(`📡 Individual button [${row}][${col}] data sent to`, io.engine.clientsCount, 'frontend clients');
@@ -215,8 +233,17 @@ io.on('connection', (socket) => {
     // Handle start command (LED on port 23 + enable button reading)
     socket.on('start', () => {
         console.log('🟢 Start command received from client:', socket.id);
+        
+        // Initialize or reset session stats
+        sessionStats.set(socket.id, {
+            startTime: new Date(),
+            buttonClicks: [],
+            active: true
+        });
+        
         mqttClient.publish('esp32/led/start', 'START', { qos: 1 });
         console.log('📤 Published START command to esp32/led/start (Enable button reading + LED port 23)');
+        console.log('📊 Session started for client:', socket.id);
         
         // Send immediate feedback to client
         socket.emit('commandSent', {
@@ -229,6 +256,69 @@ io.on('connection', (socket) => {
     // Handle stop command (LED on port 22 + disable button reading)
     socket.on('stop', () => {
         console.log('🔴 Stop command received from client:', socket.id);
+        
+        const session = sessionStats.get(socket.id);
+        if (session && session.active) {
+            session.active = false;
+            const endTime = new Date();
+            const duration = Math.floor((endTime - session.startTime) / 1000); // seconds
+            
+            // Generate session summary
+            const summary = {
+                startTime: session.startTime.toLocaleString(),
+                endTime: endTime.toLocaleString(),
+                duration: `${Math.floor(duration / 60)}m ${duration % 60}s`,
+                totalClicks: session.buttonClicks.length,
+                buttonDetails: []
+            };
+            
+            // Count clicks per button
+            const clickCount = {};
+            session.buttonClicks.forEach(click => {
+                const key = click.button;
+                if (!clickCount[key]) {
+                    clickCount[key] = {
+                        button: key,
+                        row: click.row,
+                        col: click.col,
+                        count: 0,
+                        times: []
+                    };
+                }
+                clickCount[key].count++;
+                clickCount[key].times.push(click.time);
+            });
+            
+            // Convert to array and sort by button position
+            summary.buttonDetails = Object.values(clickCount).sort((a, b) => {
+                if (a.row !== b.row) return a.row - b.row;
+                return a.col - b.col;
+            });
+            
+            console.log('\n========================================');
+            console.log('📊 SESSION SUMMARY - Client:', socket.id);
+            console.log('========================================');
+            console.log('⏱️  Start Time:', summary.startTime);
+            console.log('⏱️  End Time:', summary.endTime);
+            console.log('⏱️  Duration:', summary.duration);
+            console.log('🔢 Total Button Clicks:', summary.totalClicks);
+            console.log('\n📋 Button Click Details:');
+            if (summary.buttonDetails.length > 0) {
+                summary.buttonDetails.forEach(btn => {
+                    console.log(`   Button ${btn.button}: ${btn.count} clicks`);
+                    btn.times.forEach((time, i) => {
+                        console.log(`      ${i + 1}. ${time}`);
+                    });
+                });
+            } else {
+                console.log('   No buttons clicked during this session');
+            }
+            console.log('========================================\n');
+            
+            // Send summary to client
+            socket.emit('sessionSummary', summary);
+        }
+        
         mqttClient.publish('esp32/led/stop', 'STOP', { qos: 1 });
         console.log('📤 Published STOP command to esp32/led/stop (Disable button reading + LED port 22)');
         
@@ -242,6 +332,8 @@ io.on('connection', (socket) => {
     
     socket.on('disconnect', () => {
         console.log('🔌 Client disconnected:', socket.id);
+        // Clean up session data
+        sessionStats.delete(socket.id);
     });
 });
 
