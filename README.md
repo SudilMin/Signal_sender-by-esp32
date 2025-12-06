@@ -1,100 +1,97 @@
-# ESP32 MQTT Controller
 
-A simple IoT project that controls ESP32 LEDs remotely through a web interface using MQTT.
 
-## What it does
+---
 
-- **Monitor**: Real-time button presses from ESP32 on a web page
-- **Control**: Turn LEDs on/off from your browser
-- **Connect**: Uses MQTT for wireless communication
+# IoT Remote Controller for *The Return of Attention*
 
-## Quick Demo
+### ESP32 • MQTT • Node.js • Socket.IO • Web UI
 
-1. Press **START** on webpage → LED lights up on ESP32 pin 23
-2. Press **STOP** on webpage → LED lights up on ESP32 pin 22  
-3. Press button on ESP32 → See real-time updates on webpage
+This project is my **first IoT build**, created as part of
+**“The Return Of Attention – Practices for the Happiness that Stays.”**
 
-## What you need
+It features a **9-button wireless remote** using an **ESP32 NodeMCU** that controls a web application in real time. The system is designed to support mindful interaction through a simple, physical interface.
 
-**Hardware:**
-- ESP32 board
-- 2 LEDs + resistors
-- 1 push button
-- Breadboard & wires
+---
 
-**Software:**
-- Arduino IDE
-- Node.js
+## ✨ Features
 
-## Setup (5 minutes)
+### 🔘 ESP32 Hardware
 
-### 1. Install dependencies
-```bash
-npm install express socket.io mqtt
-```
+* 9 push buttons arranged as a 3×3 grid
+* Start/Stop session control
+* LED indicators for feedback
+* Publishes button events via MQTT
+* Sends device health/status updates
 
-### 2. Update WiFi in ESP32 code
-```cpp
-const char* ssid = "YOUR_WIFI_NAME";
-const char* password = "YOUR_PASSWORD";
-```
+### 🖧 Backend (Node.js + Express)
 
-### 3. Connect hardware
-```
-ESP32 Pin 4  → Button
-ESP32 Pin 22 → LED 1 (Stop)
-ESP32 Pin 23 → LED 2 (Start)
-```
+* Subscribes to MQTT topics
+* Forwards events instantly to the frontend via Socket.IO
+* Receives session summary data
+* Stores button counts, timing, and patterns for future analysis
 
-### 4. Run the project
-```bash
-# Start web server
-node server.js
+### 🌐 Frontend (Web App)
 
-# Upload ESP32 code in Arduino IDE
-# Open http://localhost:3000
-```
+* Real-time 3×3 grid that highlights button presses
+* Start/Stop control UI
+* Device status indicator
+* Sends Stop-session data to backend
 
-## How it works
+---
+
+## 📊 Session Tracking
+
+When the **Stop** button is pressed:
+
+* All button presses during the session are recorded
+* Each button’s press count is calculated
+* Timestamps are stored
+* Entire summary is sent to the backend for analysis
+
+
+---
+
+## 🧩 System Architecture
 
 ```
-Web Browser ←→ Node.js Server ←→ MQTT Broker ←→ ESP32
-```
-
-1. Click button on website
-2. Server sends MQTT message
-3. ESP32 receives message and controls LED
-4. ESP32 sends confirmation back to website
-
-## Files
-
-- `server.js` - Web server + MQTT handler
-- `esp32_code.ino` - ESP32 Arduino code
-- `public/index.html` - Web interface
-- `test-mqtt.js` - Test MQTT messages
-
-## Troubleshooting
-
-**ESP32 won't upload?**
-- Hold BOOT button while uploading
-
-**LEDs not working?**
-- Check ESP32 Serial Monitor for MQTT messages
-- Verify WiFi connection
-
-**Website not loading?**
-- Make sure server is running: `node server.js`
-- Go to `http://localhost:3000`
-
-## Test it
-
-```bash
-# Test MQTT messages
-node test-mqtt.js
-
-# Should see messages on website and ESP32
+ESP32 → MQTT Broker (HiveMQ)
+       ↓
+Node.js/Express (MQTT Subscriber)
+       ↓
+   Socket.IO Server
+       ↓
+     Web Frontend
 ```
 
 ---
 
-**Simple IoT project perfect for beginners! 🚀**
+## 🛠️ Tech Stack
+
+* **Hardware:** ESP32 NodeMCU, Arduino (C/C++)
+* **Messaging:** MQTT, HiveMQ
+* **Backend:** Node.js, Express, MQTT.js, Socket.IO
+* **Frontend:** HTML, CSS, JavaScript, Socket.IO Client
+
+---
+
+
+
+
+## 🛰️ MQTT Topics
+
+| Topic            | Purpose                          |
+| ---------------- | -------------------------------- |
+| `remote/buttons` | Publishes button press events    |
+| `remote/start`   | Start session                    |
+| `remote/stop`    | Stop session + send summary      |
+| `remote/status`  | Device health (online/heartbeat) |
+
+---
+
+## 🙏 Acknowledgment
+
+This project was built as part of
+**“The Return Of Attention – Practices for the Happiness that Stays.”**
+Special thanks to **Nadil Siriwardana** for the guidance and support.
+
+
